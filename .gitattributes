@@ -1,0 +1,6 @@
+# Normalize line endings: store text as LF in the repo, check out native per OS.
+# Silences the "LF will be replaced by CRLF" warnings on Windows.
+* text=auto
+
+# Always LF for shell scripts (so they stay runnable on Unix checkouts).
+*.sh text eol=lf
