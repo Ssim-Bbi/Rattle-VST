@@ -1,0 +1,44 @@
+# ─── Build output ──────────────────────────────────────────────
+/build/
+/dist/
+cmake-build-*/
+
+# ─── CMake (in-source safety; out-of-source lives in /build) ────
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+
+# ─── Visual Studio / MSVC ──────────────────────────────────────
+.vs/
+*.vcxproj.user
+*.suo
+*.user
+*.obj
+*.pdb
+*.ilk
+*.exp
+
+# ─── Plug-in binaries / test host ──────────────────────────────
+*.vst3
+VST HOSTS/
+
+# ─── Project assets kept out of source control ─────────────────
+# Test samples & reference GUI images are often third-party / licensed.
+# Remove these lines to version your own assets.
+Samples/
+GUI Examples/
+
+# ─── Windows shortcuts & OS cruft ──────────────────────────────
+*.lnk
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ─── Editor / IDE ──────────────────────────────────────────────
+.idea/
+*.swp
+*~
+
+# ─── Claude Code local settings ────────────────────────────────
+.claude/settings.local.json

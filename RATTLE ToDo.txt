@@ -1,0 +1,31 @@
+add the possibility to add some slices manually if there are any missing in the auto detection
+
+Think about renaming the pace and pace curve. 
+Remove all the digits after the numbers. We only need the real numbers unless it's a value between zero and one, and then two digits would be enough. 
+ increase sample slots to 10
+ 
+ Maybe we'd need a volume adjustment setting for each of our samples as well. 
+ 
+ rattle pace -> add musical sync option, and changing the pace would introduce sub-time division bounces here and there
+ 
+ 
+ FFT - is it RMS ? we need to see PEAK values to adjust the threshold !
+ 
+ ====================================================================
+ **** from: "Update RATTLE memory file with Phase 5 details" ****
+ ====================================================================
+ What to extract from the designer (in order of importance)
+1. Colors — the most impactful, fastest win
+Open the HTML file in a browser, open DevTools → Elements/Styles, look for CSS custom properties (they'll be --color-* or --amber-* style variables on :root). Copy them all. These map 1:1 to juce::Colour constants in your LookAndFeel.
+
+2. Typography
+Font family, weights, sizes used on labels vs values vs section headers. You'll need to bundle the font as BinaryData (the designer warned about Google Fonts not being available at runtime — this is the fix).
+
+3. Control geometry
+Border-radius values, knob ring thickness, button padding. These are CSS pixel values you'll translate to JUCE Graphics calls.
+
+4. The knob ring spec
+The conic-gradient for the copper value ring — screenshot the knob at different fill levels and note the arc color (copper/amber). In JUCE this becomes Path::addCentredArc + PathStrokeType with a gradient.
+
+5. Stateful screenshots
+Hover, active/pressed, and inactive states for buttons and toggles. DevTools → force :hover state on elements. These drive the three Colour arguments to LookAndFeel draw methods.
