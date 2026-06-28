@@ -42,3 +42,6 @@ Desktop.ini
 
 # ─── Claude Code local settings ────────────────────────────────
 .claude/settings.local.json
+
+# ─── Personal working notes (kept out of source control) ───────
+RATTLE ToDo.txt
