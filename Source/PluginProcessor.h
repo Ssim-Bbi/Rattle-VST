@@ -138,6 +138,7 @@ private:
     std::atomic<float>* sampleIterParam     { nullptr };
     std::atomic<float>* panIterParam        { nullptr };
     std::atomic<float>* panSpreadParam      { nullptr };
+    std::atomic<float>* loopModeParam       { nullptr };
     std::atomic<float>* pitchParam          { nullptr };
     std::atomic<float>* pitchCurveAmtParam  { nullptr };
     std::atomic<float>* pitchCurveShapeParam{ nullptr };

@@ -53,6 +53,7 @@ public:
         int   panIter    { 0    }; // 0 = Trigger, 1 = Impact
         float panSpread  { 0.0f };
         uint8_t mutedMask { 0   }; // bit i set = slot i muted → skipped in playback
+        int   loopMode   { 0    }; // 0=Off (continuous fwd), 1=Loop FW, 2=Ping-Pong, 3=Loop BW
     };
 
     SequenceVoice() = default;

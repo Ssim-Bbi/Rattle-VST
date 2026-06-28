@@ -140,6 +140,16 @@ RattleAudioProcessorEditor::RattleAudioProcessorEditor (RattleAudioProcessor& p)
             if (auditionButton.getToggleState())
                 processorRef.auditionSlot (i);
         };
+        // Right-click a slot button → mute/unmute the whole slot at once
+        // (works for multi-slice slots without garbage-flagging each slice).
+        slotButtons[i].onRightClick = [this, i]
+        {
+            if (! processorRef.getEngine().getSampleSet().hasSlot (i))
+                return;                                      // nothing to mute on an empty slot
+            if (auto* prm = processorRef.getAPVTS().getParameter (RattleParams::ID::slotMute (i)))
+                prm->setValueNotifyingHost (prm->getValue() > 0.5f ? 0.0f : 1.0f);
+            refreshSlotButtons();                            // immediate visual feedback
+        };
         addAndMakeVisible (slotButtons[i]);
         addAndMakeVisible (slotLeds[i]); // drawn on top of the button (corner LED)
     }
@@ -264,6 +274,8 @@ RattleAudioProcessorEditor::RattleAudioProcessorEditor (RattleAudioProcessor& p)
                RattleParams::ID::sampleIter, { "Trigger", "Impact" });
     makeGroup (panIterLabel,    "Pan Iter", panIterGroup,
                RattleParams::ID::panIter,    { "Trigger", "Impact" });
+    makeGroup (loopModeLabel, "Loop", loopModeGroup,
+               RattleParams::ID::loopMode, { "Off", "FW", "P-P", "BW" });
 
     makeSlider (panSpreadLabel, "Pan Spread", panSpreadSlider, panSpreadAttachment, RattleParams::ID::panSpread);
 
@@ -288,7 +300,7 @@ RattleAudioProcessorEditor::RattleAudioProcessorEditor (RattleAudioProcessor& p)
     updateWaveform();
 
     startTimerHz (30);         // poll per-slot trigger indicators
-    setSize (560, processorRef.isInstrument() ? 860 : 800);
+    setSize (560, processorRef.isInstrument() ? 895 : 835);
 }
 
 RattleAudioProcessorEditor::~RattleAudioProcessorEditor()
@@ -322,6 +334,18 @@ void RattleAudioProcessorEditor::timerCallback()
     // Keep the mute overlay in sync with the automatable mute param (guards on change).
     if (auto* prm = processorRef.getAPVTS().getParameter (RattleParams::ID::slotMute (selectedSlot)))
         waveformView.setSlotMuted (prm->getValue() > 0.5f);
+
+    // Reflect every slot's mute on its button strike (catches host/automation changes,
+    // not just right-clicks). Only repaints the strip when the mask actually changes.
+    uint8_t mask = 0;
+    for (int i = 0; i < numSlots; ++i)
+        if (auto* prm = processorRef.getAPVTS().getParameter (RattleParams::ID::slotMute (i)))
+            if (prm->getValue() > 0.5f) mask |= (uint8_t) (1 << i);
+    if (mask != lastMuteMask)
+    {
+        lastMuteMask = mask;
+        refreshSlotButtons();
+    }
 }
 
 //==============================================================================
@@ -392,6 +416,11 @@ void RattleAudioProcessorEditor::refreshSlotButtons()
                      : (loaded ? juce::Colour (0xff3a3a56) : juce::Colour (0xff2a2a36)));
         slotButtons[i].setColour (juce::TextButton::textColourOffId,
             loaded ? juce::Colour (0xffc0c0d8) : juce::Colour (0xff5a5a6a));
+
+        bool muted = false;
+        if (auto* prm = processorRef.getAPVTS().getParameter (RattleParams::ID::slotMute (i)))
+            muted = prm->getValue() > 0.5f;
+        slotButtons[i].setMuted (muted && loaded);   // strike only meaningful on a loaded slot
     }
     repaint();
 }
@@ -659,6 +688,7 @@ void RattleAudioProcessorEditor::resizedFX (juce::Rectangle<int> area)
     makeRowPair (playOrderLabel, playOrderGroup, panSpreadLabel, panSpreadSlider);
     makeRow     (sampleIterLabel, sampleIterGroup);
     makeRow     (panIterLabel,    panIterGroup);
+    makeRow     (loopModeLabel, loopModeGroup);
 
     area.removeFromTop (secGap); sep2Y = area.getY() - 6;
     makeRowPair (pitchLabel, pitchSlider, pitchCurveAmtLabel, pitchCurveAmtSlider);
@@ -751,6 +781,7 @@ void RattleAudioProcessorEditor::resizedInst (juce::Rectangle<int> area)
     makeRowPair (playOrderLabel, playOrderGroup, panSpreadLabel, panSpreadSlider);
     makeRow     (sampleIterLabel, sampleIterGroup);
     makeRow     (panIterLabel,    panIterGroup);
+    makeRow     (loopModeLabel, loopModeGroup);
 
     area.removeFromTop (secGap); sep2Y = area.getY() - 6;
     makeRowPair (pitchLabel, pitchSlider, pitchCurveAmtLabel, pitchCurveAmtSlider);

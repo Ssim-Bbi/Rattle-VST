@@ -8,6 +8,7 @@
 #include "ui/FFTView.h"
 #include "ui/ChoiceToggleGroup.h"
 #include "ui/LedDot.h"
+#include "ui/SlotButton.h"
 
 //==============================================================================
 class RattleAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -50,11 +51,12 @@ private:
 
     // Slot strip (8 numbered buttons) + per-slot trigger LEDs
     static constexpr int numSlots = 8;
-    juce::TextButton slotButtons[numSlots];
+    SlotButton       slotButtons[numSlots];
     LedDot           slotLeds[numSlots];
     float            slotGlow[numSlots] {};
     uint32_t         lastHits[numSlots] {};
     int              selectedSlot { 0 };
+    uint8_t          lastMuteMask { 0 };  // tracks per-slot mute to refresh button strikes
 
     // Sample-area buttons
     juce::TextButton loadButton    { "Load"    };
@@ -101,6 +103,9 @@ private:
     ChoiceToggleGroup playOrderGroup, sampleIterGroup, panIterGroup;
     juce::Slider      panSpreadSlider;
     std::unique_ptr<SA> panSpreadAttachment;
+
+    juce::Label       loopModeLabel;
+    ChoiceToggleGroup loopModeGroup;
 
     // Tempo sync (shares the Spacing cell with paceSlider in Sync mode)
     juce::Label       tempoSyncLabel, gridLabel;

@@ -1,5 +1,32 @@
 #include "RattleEngine.h"
 
+// Maps a free-running phase to a unit index in [0, n) per the loop mode.
+//   Off / Loop FW : 0,1,…,n-1, 0,1,…            (forward, cycles back to first)
+//   Ping-Pong     : 0,1,…,n-1, n-2,…,1, 0,1,…   (bounces back down)
+//   Loop BW       : n-1,…,1,0, n-1,…            (backward, cycles back to last)
+static int loopIndex (int phase, int n, int loopMode)
+{
+    if (n <= 1) return 0;
+    if (loopMode == 2) // Ping-Pong
+    {
+        const int period = 2 * (n - 1);
+        int m = phase % period;
+        if (m < 0) m += period;
+        return (m < n) ? m : (period - m);
+    }
+    int m = phase % n;
+    if (m < 0) m += n;
+    return (loopMode == 3) ? (n - 1 - m)   // Loop BW (backward)
+                           : m;            // Off / Loop FW (forward)
+}
+
+// Distinct phases before the walk repeats — used to keep the cursor bounded.
+static int loopPeriod (int n, int loopMode)
+{
+    if (n <= 1) return 1;
+    return (loopMode == 2) ? 2 * (n - 1) : n;
+}
+
 RattleEngine::RattleEngine()
     : rng (std::random_device{}())
 {
@@ -167,11 +194,25 @@ bool RattleEngine::resolveUnits (SequenceVoice::Params& params, int rattle)
         buildPool (pool, poolSize, loaded, numLoaded);
         if (poolSize == 0) return false;
 
-        for (int r = 0; r < rattle; ++r)
-            params.repSlices[r] = pool[pickPoolIndex (params.playOrder, poolSize)];
+        if (params.playOrder == 0) // Seq — ordered walk (loop-mode aware)
+        {
+            if (params.loopMode != 0) poolCursor = 0; // FW/Ping-Pong/BW restart each trigger
+            for (int r = 0; r < rattle; ++r)
+            {
+                params.repSlices[r] = pool[loopIndex (poolCursor, poolSize, params.loopMode)];
+                ++poolCursor;
+            }
+            poolCursor %= juce::jmax (1, loopPeriod (poolSize, params.loopMode)); // bounded continuation
+        }
+        else // Rnd — random, no immediate repeat
+        {
+            for (int r = 0; r < rattle; ++r)
+                params.repSlices[r] = pool[pickPoolIndex (params.playOrder, poolSize)];
+        }
     }
     else // Trigger — one slot for the whole burst, walk its slices in order
     {
+        if (params.loopMode != 0) rrCursor = 0; // FW/Ping-Pong/BW restart slot RR from the first slot
         const int slot = pickSlot (params.playOrder, loaded, numLoaded);
         auto buf = sampleSet.getBufferShared (slot);
         if (buf == nullptr || buf->getNumSamples() == 0) return false;
@@ -193,7 +234,7 @@ bool RattleEngine::resolveUnits (SequenceVoice::Params& params, int rattle)
             SequenceVoice::RepSlice u { buf, rate, 0, nSmp, gain, slot };
             if (nPlay > 0)
             {
-                const auto& sl = slices[(size_t) playIdx[r % nPlay]];
+                const auto& sl = slices[(size_t) playIdx[loopIndex (r, nPlay, params.loopMode)]];
                 u.start = sl.start;
                 u.end   = sl.end;
             }

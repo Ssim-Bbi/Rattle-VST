@@ -33,6 +33,7 @@ namespace RattleParams
         inline constexpr const char* sampleIter     = "sampleIter";
         inline constexpr const char* panIter        = "panIter";
         inline constexpr const char* panSpread      = "panSpread";
+        inline constexpr const char* loopMode       = "loopMode";
 
         // Section 3 — Output
         inline constexpr const char* mix            = "mix";
@@ -246,6 +247,15 @@ namespace RattleParams
         p.push_back (std::make_unique<AudioParameterChoice> (
             ParameterID { ID::panIter }, "Pan Iteration",
             StringArray { "Trigger", "Impact" }, 0));
+
+        // Loop: how the Seq unit/slice walk traverses across a burst and across triggers.
+        //   Off       = continuous round-robin (cursor persists, forward; never restarts).
+        //   Loop FW   = restart from the first unit each trigger, loop forward.
+        //   Ping-Pong = restart from the first, bounce back down through the units.
+        //   Loop BW   = restart from the last unit each trigger, loop backward.
+        p.push_back (std::make_unique<AudioParameterChoice> (
+            ParameterID { ID::loopMode }, "Loop",
+            StringArray { "Off", "Loop FW", "Ping-Pong", "Loop BW" }, 0));
 
         // Pan Spread: 0–100 %
         p.push_back (std::make_unique<AudioParameterFloat> (

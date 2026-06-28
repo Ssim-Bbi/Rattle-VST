@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(RATTLE VERSION 0.9.0 LANGUAGES C CXX)
+project(RATTLE VERSION 0.9.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,7 +36,8 @@ set(RATTLE_SHARED_SOURCES
     Source/ui/FFTView.cpp
     Source/ui/FFTView.h
     Source/ui/ChoiceToggleGroup.h
-    Source/ui/LedDot.h)
+    Source/ui/LedDot.h
+    Source/ui/SlotButton.h)
 
 set(RATTLE_COMPANY     "RimshotAudio")
 set(RATTLE_MFR_CODE    Simn)   # 4 chars, manufacturer
@@ -80,6 +81,10 @@ foreach(target RattleFX RattleInst)
     target_sources(${target} PRIVATE ${RATTLE_SHARED_SOURCES})
 
     target_include_directories(${target} PRIVATE Source)
+
+    # Source files are UTF-8 (no BOM); tell MSVC so non-ASCII string literals
+    # (em-dashes, arrows in displayed text) compile correctly instead of mojibake.
+    target_compile_options(${target} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
     target_compile_definitions(${target} PUBLIC
         JUCE_WEB_BROWSER=0
