@@ -28,6 +28,7 @@ VST HOSTS/
 # Remove these lines to version your own assets.
 Samples/
 GUI Examples/
+_DO NOT COMMIT
 
 # ─── Windows shortcuts & OS cruft ──────────────────────────────
 *.lnk
