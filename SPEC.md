@@ -1,6 +1,6 @@
 # RATTLE — VST3 Plug-in Specification
 
-> Status: **Draft v0.9.1** · Date: 2026-06-18 · Author: Simon (design) + Claude (drafting)
+> Status: **Draft v0.9.2** · Date: 2026-06-18 · Author: Simon (design) + Claude (drafting)
 > This is the agreed design contract. Implementation should not start until this is signed off.
 
 ---
@@ -28,6 +28,7 @@
 | v0.8.4 | 2026-06-18 | **Unit display formatting.** Spacing, Input Gain, and Filter Freq now display as **integer + unit** (`100 ms`, `20 dB`, `1000 Hz`) instead of raw 2-decimal floats, via the same `AudioParameterFloatAttributes` mechanism (host + sliders). |
 | v0.9.0 | 2026-06-23 | **Garbage slices + automatable per-slot mute.** Slices can be marked **garbage** (`bool` on `SampleSet::Slice`, serialized) — skipped in playback and shown grayed with a big **X**. Whole slots have an automatable **mute** (8 `AudioParameterBool` `slotMuteN`, folded into `SequenceVoice::Params::mutedMask`) — right-click an *unsliced* sample to mute it (the temporary-mute / automation use case); right-click a *slice* of a sliced slot to garbage it. The engine excludes muted slots and garbage slices from both the unified pool and the per-trigger slice walk; a slot with no playable units is skipped (silent if it's the only one). Garbage flags survive marker edits (preserved by start-position match). **New waveform gestures**: right-click = garbage/mute, double-click = add/delete a marker, drag a marker off the view = delete. |
 | v0.9.1 | 2026-06-27 | **Loop traversal control.** One sequencing control (Section 2): **Loop** (`loopMode`) — **Off** / **Loop FW** / **Ping-Pong** / **Loop BW** — governs how the **Seq** unit/slice walk traverses. *Off* = continuous round-robin (cursor persists across triggers, forward; the prior default). The three active modes **restart each trigger**: *Loop FW* from the first unit looping forward, *Ping-Pong* from the first bouncing back down, *Loop BW* from the **last** unit looping backward (e.g. replay a sliced one-shot last→first). Applies to Seq in both Impact (pool walk via free-running `poolCursor` → `loopIndex`/`loopPeriod`) and Trigger (slice walk) modes; active modes also reset the slot RR. Random order ignores it. Default Off reproduces prior behavior. One Section-2 row added (560×835 FX / 560×895 Inst). |
+| v0.9.2 | 2026-06-28 | **FX/Inst polish.** **Velocity is now Inst-only**: in Inst it scales the RATTLE output down from full by MIDI velocity (amount set by the Velocity param, as before); in **FX the sequence always generates at full intensity** — Velocity control removed from the FX UI, output forced to 100% (mirrors how Mix is FX-only / forced in Inst). **Clearing a slot resets its mute** so a reloaded sample starts enabled instead of inheriting a prior right-click mute. **FX default view is now Sample** (was Input — input filtering is moot before a sample is loaded). **Display strings switched to ASCII** (em-dash/arrow → `-` / `->`): the rendering font lacks those glyphs, so `/utf-8` fixed the encoding but they still showed as boxes. **Play Order + Loop merged** into one control: Play Order is now **Continuous / Random / Loop**, and a **Loop direction** sub-control (Forward / Ping-Pong / Backward, `loopDir`) appears only when Loop is selected — masked otherwise, like the Free/Sync swap. This drops the dead Random×Loop combinations of the previous two-control design (`playOrder` Seq/Rnd + `loopMode` Off/FW/PP/BW): Continuous = the old Loop-Off, Loop = restart-per-trigger. Sequencing is only meaningful with ≥2 playable units (single unsliced sample → all orders inert; documented, controls stay active). |
 
 ---
 
@@ -174,12 +175,11 @@ The trigger comes from one of two sources, shipped as **two separate plug-ins sh
     repetition. This is the round-robin-per-slice mode. ("Impact" = each generated sample playback
     event, like each bounce of a ball.)
   - The pool cursor **persists across triggers** (consecutive bursts keep cycling). Default **Impact**.
-- **Loop** *(v0.9.1)*: single 4-way control for how the **Seq** walk traverses (Random order ignores it):
-  - **Off** — continuous round-robin: the cursor persists across triggers and loops forward; never restarts (the prior default).
-  - **Loop FW** — each trigger restarts from the **first** unit and loops forward (0,1,…,N-1,0,…).
-  - **Ping-Pong** — each trigger restarts from the first and bounces back down (0,1,…,N-1,N-2,…).
-  - **Loop BW** — each trigger restarts from the **last** unit and loops backward (N-1,…,1,0,N-1,…) — e.g. replay a sliced one-shot last→first.
-  - Active modes also reset the slot round-robin. Shared `loopIndex` (forward modulo / triangle / backward modulo) + `loopPeriod` used for both the Impact pool walk and the Trigger slice walk.
+- **Play Order** *(v0.9.2)*: single control for how the unit/slice walk traverses (the old separate Seq/Rnd Play Order and Off/FW/PP/BW Loop are merged here, dropping the dead Random×Loop combinations):
+  - **Continuous** — round-robin that advances across triggers and never restarts (the prior default; cursor persists).
+  - **Random** — random unit, no immediate repeat.
+  - **Loop** — restarts the walk from its edge each trigger; direction set by the **Loop** sub-control (`loopDir`, shown only under Loop): **Fwd** (0,1,…,N-1,0,…), **Ping** (bounce 0,…,N-1,N-2,…), **Bwd** (start from the last: N-1,…,1,0,N-1,…). Loop also resets the slot round-robin.
+  - Only meaningful with **≥2 playable units**; with a single unsliced sample all three are inert (no glitch — `loopIndex` clamps `n≤1` to 0; controls stay active, documented behavior). Shared `loopIndex` (fwd modulo / triangle / bwd modulo) + `loopPeriod` for the Impact per-impact pool walk, the **Trigger per-trigger slot walk** (the sample advances each trigger — Continuous/Loop directional, Random no-repeat), and the within-burst slice walk.
 - **Embedding**: the raw audio of every loaded sample (plus its name, gain, and slice markers) is
   serialized into plug-in state, so presets and projects are self-contained.
 - **Garbage slices / slot mute** *(v0.9.0)*: any slice can be flagged **garbage** (serialized per
@@ -255,7 +255,7 @@ Shared unless marked [Inst] or [FX]. Final IDs assigned at implementation.
 | 6b | Input Gain [FX] | 1 | float | 0–40 dB; applied after pre-filter, before detector |
 | 7 | Threshold [FX] | 1 | float | detector |
 | 8 | Sensitivity [FX] | 1 | float | detector |
-| 9 | Velocity | 1 | float | 0–100% |
+| 9 | Velocity [Inst] | 1 | float | 0–100%; Inst-only — scales output down from full by MIDI velocity. FX always 100% (no control). |
 | 10 | Spread | 1 | float | 0–100%; FX: pre-filter Q/width · Inst: note-window width |
 | 11 | Pitch | 2 | float | **−12…+12 st** |
 | 12 | Pitch Curve Amt | 2 | float | **−12…+12 st** |
@@ -267,11 +267,11 @@ Shared unless marked [Inst] or [FX]. Final IDs assigned at implementation.
 | 17a | Tempo Sync | 2 | choice | Free / Sync |
 | 17b | Division | 2 | choice | note value (Sync): 1/4…1/32 incl. dotted & triplet |
 | 17c | Grid | 2 | choice | snap granularity (Sync): 1/8…1/64 |
-| 18 | Play Order | 2 | choice | Seq / Rnd (random-no-repeat) |
+| 18 | Play Order | 2 | choice | Continuous / Random / Loop — unit-walk traversal; Loop restarts each trigger (direction via Loop sub-control) |
 | 19 | Pan Spread | 2 | float | 0–100% |
 | 19b | Sample Iteration | 2 | choice | Trigger / Impact (per-sequence vs per-impact round-robin); default Impact |
 | 19c | Pan Iteration | 2 | choice | Trigger / Impact; default Trigger |
-| 19d | Loop | 2 | choice | Off / Loop FW / Ping-Pong / Loop BW — Seq walk traversal; Off = continuous, actives restart per trigger; default Off |
+| 19d | Loop (dir) | 2 | choice | Forward / Ping-Pong / Backward — direction when Play Order = Loop (`loopDir`; UI shows it only then); default Forward |
 | 20 | Mix [FX] | 3 | float | 0–100%; hidden & forced 100% in Inst |
 | 21 | Output Level | 3 | float | dB trim, both modes |
 | 22 | Slot 1–8 Mute | 2 | bool ×8 | `slotMuteN`; mutes the whole slot (automatable) |

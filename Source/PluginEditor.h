@@ -39,6 +39,7 @@ private:
     void refreshSlotButtons();
     void applyView();                            // FX: swap Input/Sample views
     void syncModeChanged();                      // Free/Sync: swap Spacing control
+    void updateLoopVisibility();                 // Play Order: show Loop direction only under Loop
     void resizedFX   (juce::Rectangle<int> area);
     void resizedInst (juce::Rectangle<int> area);
 
@@ -64,7 +65,7 @@ private:
     juce::TextButton autoButton    { "Auto"    }; // auto-detect slices
     juce::TextButton triggerButton { "Trigger" }; // FX only
     juce::TextButton viewButton    { "Sample"  }; // FX: Input <-> Sample switch
-    bool             showSampleView { false };
+    bool             showSampleView { true };  // FX starts on the Sample view (input filtering is moot with no sample)
 
     // Audition: when toggled on, clicking a slot button previews that sample.
     juce::ShapeButton auditionButton { "Audition",
@@ -104,8 +105,10 @@ private:
     juce::Slider      panSpreadSlider;
     std::unique_ptr<SA> panSpreadAttachment;
 
-    juce::Label       loopModeLabel;
-    ChoiceToggleGroup loopModeGroup;
+    juce::Label       loopDirLabel;   // "Loop" direction sub-control, shown only when Play Order = Loop
+    ChoiceToggleGroup loopDirGroup;
+    std::unique_ptr<juce::ParameterAttachment> playOrderWatcher; // shows/hides loopDir on Play Order change
+    bool              loopActive { false };
 
     // Tempo sync (shares the Spacing cell with paceSlider in Sync mode)
     juce::Label       tempoSyncLabel, gridLabel;

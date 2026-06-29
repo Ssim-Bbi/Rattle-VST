@@ -183,6 +183,10 @@ RattleAudioProcessorEditor::RattleAudioProcessorEditor (RattleAudioProcessor& p)
     clearButton.onClick = [this]
     {
         processorRef.clearSlot (selectedSlot);
+        // Reset this slot's mute so a reloaded sample starts enabled (not stuck muted
+        // from a right-click on the now-cleared slot).
+        if (auto* prm = processorRef.getAPVTS().getParameter (RattleParams::ID::slotMute (selectedSlot)))
+            prm->setValueNotifyingHost (0.0f);
         refreshSlotButtons();
     };
     addAndMakeVisible (clearButton);
@@ -241,7 +245,8 @@ RattleAudioProcessorEditor::RattleAudioProcessorEditor (RattleAudioProcessor& p)
     }
 
     makeSlider (spreadLabel,   "Spread",   spreadSlider,   spreadAttachment,   RattleParams::ID::spread);
-    makeSlider (velocityLabel, "Velocity", velocitySlider, velocityAttachment, RattleParams::ID::velocity);
+    if (processorRef.isInstrument())   // Velocity is Inst-only; FX always generates at full intensity
+        makeSlider (velocityLabel, "Velocity", velocitySlider, velocityAttachment, RattleParams::ID::velocity);
 
     // ---- Section 2: Rattle -----------------------------------------------
     makeSlider (rattleLabel,    "Rattle",     rattleSlider,    rattleAttachment,    RattleParams::ID::rattle);
@@ -269,13 +274,19 @@ RattleAudioProcessorEditor::RattleAudioProcessorEditor (RattleAudioProcessor& p)
     tempoSyncWatcher->sendInitialUpdate();
 
     makeGroup (playOrderLabel,  "Play Order", playOrderGroup,
-               RattleParams::ID::playOrder,  { "Seq", "Rnd" });
+               RattleParams::ID::playOrder,  { "Cont", "Rnd", "Loop" });
     makeGroup (sampleIterLabel, "Sample Iter", sampleIterGroup,
                RattleParams::ID::sampleIter, { "Trigger", "Impact" });
     makeGroup (panIterLabel,    "Pan Iter", panIterGroup,
                RattleParams::ID::panIter,    { "Trigger", "Impact" });
-    makeGroup (loopModeLabel, "Loop", loopModeGroup,
-               RattleParams::ID::loopMode, { "Off", "FW", "P-P", "BW" });
+    makeGroup (loopDirLabel, "Loop", loopDirGroup,
+               RattleParams::ID::loopDir, { "Fwd", "Ping", "Bwd" });
+
+    // Show the Loop direction sub-control only when Play Order = Loop (index 2).
+    playOrderWatcher = std::make_unique<juce::ParameterAttachment> (
+        *apvts.getParameter (RattleParams::ID::playOrder),
+        [this] (float v) { loopActive = (juce::roundToInt (v) == 2); updateLoopVisibility(); });
+    playOrderWatcher->sendInitialUpdate();
 
     makeSlider (panSpreadLabel, "Pan Spread", panSpreadSlider, panSpreadAttachment, RattleParams::ID::panSpread);
 
@@ -296,7 +307,7 @@ RattleAudioProcessorEditor::RattleAudioProcessorEditor (RattleAudioProcessor& p)
     selectSlot (0);
 
     if (! processorRef.isInstrument())
-        applyView();           // FX: start on the Input view
+        applyView();           // FX: start on the Sample view
     updateWaveform();
 
     startTimerHz (30);         // poll per-slot trigger indicators
@@ -367,7 +378,6 @@ void RattleAudioProcessorEditor::applyView()
     thresholdLabel.setVisible  (! s); thresholdSlider.setVisible  (! s);
     sensitivityLabel.setVisible(! s); sensitivitySlider.setVisible(! s);
     spreadLabel.setVisible     (! s); spreadSlider.setVisible     (! s);
-    velocityLabel.setVisible   (! s); velocitySlider.setVisible   (! s);
     filterListenButton.setVisible (! s);
 
     // Sample view (waveform + slots).
@@ -393,6 +403,13 @@ void RattleAudioProcessorEditor::syncModeChanged()
     syncGridGroup.setVisible (syncOn);
     gridLabel.setVisible     (syncOn);
     paceLabel.setText (syncOn ? "Division" : "Spacing", juce::dontSendNotification);
+}
+
+void RattleAudioProcessorEditor::updateLoopVisibility()
+{
+    // The Loop direction sub-control (Fwd / Ping / Bwd) only applies under Play Order = Loop.
+    loopDirLabel.setVisible (loopActive);
+    loopDirGroup.setVisible (loopActive);
 }
 
 void RattleAudioProcessorEditor::selectSlot (int slot)
@@ -552,8 +569,8 @@ void RattleAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xff8a8a93));
     g.setFont (juce::FontOptions (13.0f));
     g.drawFittedText (processorRef.isInstrument()
-                          ? "Instrument  —  MIDI-triggered"
-                          : "Audio Insert  —  FX",
+                          ? "Instrument  -  MIDI-triggered"
+                          : "Audio Insert  -  FX",
                       bounds.removeFromTop (26), juce::Justification::centredTop, 1);
 
     g.setColour (juce::Colour (0xff2a2a36));
@@ -614,7 +631,6 @@ void RattleAudioProcessorEditor::resizedFX (juce::Rectangle<int> area)
         miniRow (thresholdLabel,   thresholdSlider);
         miniRow (sensitivityLabel, sensitivitySlider);
         miniRow (spreadLabel,      spreadSlider);
-        miniRow (velocityLabel,    velocitySlider);
         filterListenButton.setBounds (rc.removeFromTop (22));
     }
 
@@ -688,7 +704,7 @@ void RattleAudioProcessorEditor::resizedFX (juce::Rectangle<int> area)
     makeRowPair (playOrderLabel, playOrderGroup, panSpreadLabel, panSpreadSlider);
     makeRow     (sampleIterLabel, sampleIterGroup);
     makeRow     (panIterLabel,    panIterGroup);
-    makeRow     (loopModeLabel, loopModeGroup);
+    makeRow     (loopDirLabel, loopDirGroup);
 
     area.removeFromTop (secGap); sep2Y = area.getY() - 6;
     makeRowPair (pitchLabel, pitchSlider, pitchCurveAmtLabel, pitchCurveAmtSlider);
@@ -781,7 +797,7 @@ void RattleAudioProcessorEditor::resizedInst (juce::Rectangle<int> area)
     makeRowPair (playOrderLabel, playOrderGroup, panSpreadLabel, panSpreadSlider);
     makeRow     (sampleIterLabel, sampleIterGroup);
     makeRow     (panIterLabel,    panIterGroup);
-    makeRow     (loopModeLabel, loopModeGroup);
+    makeRow     (loopDirLabel, loopDirGroup);
 
     area.removeFromTop (secGap); sep2Y = area.getY() - 6;
     makeRowPair (pitchLabel, pitchSlider, pitchCurveAmtLabel, pitchCurveAmtSlider);

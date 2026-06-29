@@ -33,7 +33,7 @@ namespace RattleParams
         inline constexpr const char* sampleIter     = "sampleIter";
         inline constexpr const char* panIter        = "panIter";
         inline constexpr const char* panSpread      = "panSpread";
-        inline constexpr const char* loopMode       = "loopMode";
+        inline constexpr const char* loopDir        = "loopDir";
 
         // Section 3 — Output
         inline constexpr const char* mix            = "mix";
@@ -233,10 +233,11 @@ namespace RattleParams
             ParameterID { ID::syncGrid }, "Grid",
             StringArray { "1/8", "1/16", "1/32", "1/64" }, 2));
 
-        // Play Order: Seq (sequential cycle) / Rnd (random, no immediate repeat)
+        // Play Order: Continuous (round-robin advancing across triggers) / Random (no
+        // immediate repeat) / Loop (restart the walk each trigger; direction via loopDir).
         p.push_back (std::make_unique<AudioParameterChoice> (
             ParameterID { ID::playOrder }, "Play Order",
-            StringArray { "Seq", "Rnd" }, 0));
+            StringArray { "Continuous", "Random", "Loop" }, 0));
 
         // Sample Iteration: Trigger (advance per Rattle sequence) / Impact (advance per playback event)
         p.push_back (std::make_unique<AudioParameterChoice> (
@@ -248,14 +249,11 @@ namespace RattleParams
             ParameterID { ID::panIter }, "Pan Iteration",
             StringArray { "Trigger", "Impact" }, 0));
 
-        // Loop: how the Seq unit/slice walk traverses across a burst and across triggers.
-        //   Off       = continuous round-robin (cursor persists, forward; never restarts).
-        //   Loop FW   = restart from the first unit each trigger, loop forward.
-        //   Ping-Pong = restart from the first, bounce back down through the units.
-        //   Loop BW   = restart from the last unit each trigger, loop backward.
+        // Loop direction: only applies when Play Order = Loop. Forward / Ping-Pong /
+        // Backward; all restart the walk from their edge each trigger.
         p.push_back (std::make_unique<AudioParameterChoice> (
-            ParameterID { ID::loopMode }, "Loop",
-            StringArray { "Off", "Loop FW", "Ping-Pong", "Loop BW" }, 0));
+            ParameterID { ID::loopDir }, "Loop",
+            StringArray { "Forward", "Ping-Pong", "Backward" }, 0));
 
         // Pan Spread: 0–100 %
         p.push_back (std::make_unique<AudioParameterFloat> (

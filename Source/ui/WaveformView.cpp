@@ -98,7 +98,7 @@ void WaveformView::paint (juce::Graphics& g)
     {
         g.setColour (juce::Colour (0xff4a4a5a));
         g.setFont   (juce::FontOptions (13.0f));
-        g.drawText  ("No sample loaded — click Load", b, juce::Justification::centred);
+        g.drawText  ("No sample loaded - click Load", b, juce::Justification::centred);
         return;
     }
 

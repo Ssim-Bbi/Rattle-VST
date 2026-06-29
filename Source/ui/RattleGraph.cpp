@@ -184,5 +184,5 @@ void RattleGraph::paint (juce::Graphics& g)
     g.drawText ("+12 st", (int) x0,       (int)(yBot - H),          40, 12, juce::Justification::centredLeft);
     g.drawText ("0",      (int) x0,       (int)(pitchCentreY - 6.f), 14, 12, juce::Justification::centredLeft);
     g.drawText ("-12 st", (int) x0,       (int)(yBot - 12.f),        40, 12, juce::Justification::centredLeft);
-    g.drawText ("Time →", (int)(x0 + W - 38.f), (int)(yBot - 12.f), 38, 12, juce::Justification::centredRight);
+    g.drawText ("Time ->", (int)(x0 + W - 38.f), (int)(yBot - 12.f), 38, 12, juce::Justification::centredRight);
 }

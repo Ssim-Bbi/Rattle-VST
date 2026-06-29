@@ -33,7 +33,7 @@ RattleAudioProcessor::RattleAudioProcessor()
     sampleIterParam      = apvts.getRawParameterValue (RattleParams::ID::sampleIter);
     panIterParam         = apvts.getRawParameterValue (RattleParams::ID::panIter);
     panSpreadParam       = apvts.getRawParameterValue (RattleParams::ID::panSpread);
-    loopModeParam        = apvts.getRawParameterValue (RattleParams::ID::loopMode);
+    loopDirParam         = apvts.getRawParameterValue (RattleParams::ID::loopDir);
     pitchParam           = apvts.getRawParameterValue (RattleParams::ID::pitch);
     pitchCurveAmtParam   = apvts.getRawParameterValue (RattleParams::ID::pitchCurveAmt);
     pitchCurveShapeParam = apvts.getRawParameterValue (RattleParams::ID::pitchCurveShape);
@@ -51,9 +51,16 @@ SequenceVoice::Params RattleAudioProcessor::buildParams (float rawVelocity) cons
 {
     SequenceVoice::Params p;
 
-    // VELOCITY param (0 = flat / no dynamics, 1 = full dynamics tracking).
+    // VELOCITY: Inst scales the output down from full by MIDI velocity (amount set
+    // by the Velocity param: 0 = flat/full, 1 = full MIDI dynamics). FX always
+    // generates the RATTLE sequence at full intensity (no velocity control).
+#if RATTLE_IS_INSTRUMENT
     const float velMod = velocityParam->load();
     p.velocity = 1.0f - velMod + velMod * rawVelocity; // lerp(1, rawVelocity, velMod)
+#else
+    p.velocity = 1.0f;
+    juce::ignoreUnused (rawVelocity);
+#endif
 
     const int rattle  = juce::jmax (1, (int) rattleParam->load());
     p.rattle          = rattle;
@@ -88,7 +95,7 @@ SequenceVoice::Params RattleAudioProcessor::buildParams (float rawVelocity) cons
     p.playOrder       = playOrderParam  ? (int) playOrderParam->load()  : 0;
     p.sampleIter      = sampleIterParam ? (int) sampleIterParam->load() : 1;
     p.panIter         = panIterParam    ? (int) panIterParam->load()    : 0;
-    p.loopMode        = loopModeParam   ? (int) loopModeParam->load()   : 0;
+    p.loopDir         = loopDirParam    ? (int) loopDirParam->load()    : 0;
     p.panSpread       = panSpreadParam  ? panSpreadParam->load()        : 0.0f;
 
     uint8_t mutedMask = 0;
