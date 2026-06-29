@@ -15,9 +15,9 @@
 #   .\build-safe.ps1 -FreeApps @()        # don't close any app
 #   .\build-safe.ps1 -FreeApps 'Wispr Flow','Signal'
 #
-# Deploy is a separate, manual step: deploy_and_test.ps1 self-elevates only the
-# Program Files copy (one UAC prompt), then launches the host at NORMAL integrity
-# so drag-and-drop works. Run it from a NORMAL (non-admin) PowerShell.
+# Deploy is manual: after the build, copy the .vst3 from build\Rattle*_artefacts\
+# Release\VST3\ to your VST3 folder. Tip: launch the test host NON-elevated, or
+# Windows UIPI blocks drag-and-drop of samples from a normal Explorer.
 #
 [CmdletBinding()]
 param(
@@ -160,9 +160,10 @@ try {
 
     if ($exit -ne 0) { exit $exit }
 
-    # --- Hand off to the manual deploy step ---
-    Write-Host "`nBuild ready. To deploy + launch the test host, run from a NORMAL PowerShell:" -ForegroundColor Cyan
-    Write-Host "    .\deploy_and_test.ps1   (a UAC prompt will appear for the copy only)" -ForegroundColor White
+    # --- Done: point at the build outputs for the manual copy ---
+    Write-Host "`nBuild ready (Release). Copy the .vst3 to your VST3 folder to test:" -ForegroundColor Cyan
+    Write-Host "    build\RattleFX_artefacts\Release\VST3\RATTLE FX.vst3" -ForegroundColor White
+    Write-Host "    build\RattleInst_artefacts\Release\VST3\RATTLE Inst.vst3" -ForegroundColor White
 }
 finally {
     # Always restore the apps we closed - even if the build failed or was interrupted.
